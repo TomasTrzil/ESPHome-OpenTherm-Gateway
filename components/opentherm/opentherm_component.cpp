@@ -466,6 +466,7 @@ namespace esphome
         unsigned int data = request & 0xFFFF;
         data &= ~(1u << 8);
         request = instance_->ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Status, data);
+        ESP_LOGD(TAG, "Blokace topení: CH enable vypnut (0x%08lX)", request);
       }
 
       unsigned long response = instance_->ot_->sendRequest(request);
