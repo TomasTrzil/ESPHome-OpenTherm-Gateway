@@ -455,6 +455,19 @@ namespace esphome
         return;
       }
 
+      // --- BLOKACE TOPENÍ Z HOME ASSISTANTU ---
+      // Když je climate "Řízení topné vody" v režimu Vypnuto, smaže se ve zprávě
+      // od termostatu (Status, ID 0) bit "CH enable" (horní bajt, bit 0).
+      // Kotel pak netopí, i když PT52 chce. V režimu Vytápění beze změny.
+      if (instance_->heating_water_climate_ != nullptr &&
+          instance_->heating_water_climate_->mode == climate::CLIMATE_MODE_OFF &&
+          instance_->ot_->getDataID(request) == OpenThermMessageID::Status)
+      {
+        unsigned int data = request & 0xFFFF;
+        data &= ~(1u << 8);
+        request = instance_->ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Status, data);
+      }
+
       unsigned long response = instance_->ot_->sendRequest(request);
       // 0 = boiler did not answer, bad parity = noise; let the thermostat time out instead of relaying garbage
       if (response != 0 && !instance_->ot_->parity(response))
