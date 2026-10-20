@@ -455,10 +455,13 @@ namespace esphome
         return;
       }
 
-      // --- BLOKACE TOPENÍ Z HOME ASSISTANTU ---
-      // Když je climate "Řízení topné vody" v režimu Vypnuto, smaže se ve zprávě
-      // od termostatu (Status, ID 0) bit "CH enable" (horní bajt, bit 0).
-      // Kotel pak netopí, i když PT52 chce. V režimu Vytápění beze změny.
+      // Block central heating when the heating water climate is set to OFF.
+      // The CH enable bit (master status flags, bit 0 = bit 8 of the data word)
+      // is cleared in the thermostat's Status request (Data-ID 0) before it is
+      // forwarded, so the boiler does not heat regardless of the thermostat's
+      // demand. Other master flags (e.g. DHW enable) are left untouched.
+      // In HEAT mode all requests are forwarded unchanged. The climate starts
+      // in HEAT mode after boot, so the default behaviour is pass-through.
       if (instance_->heating_water_climate_ != nullptr &&
           instance_->heating_water_climate_->mode == climate::CLIMATE_MODE_OFF &&
           instance_->ot_->getDataID(request) == OpenThermMessageID::Status)
@@ -466,7 +469,7 @@ namespace esphome
         unsigned int data = request & 0xFFFF;
         data &= ~(1u << 8);
         request = instance_->ot_->buildRequest(OpenThermRequestType::READ, OpenThermMessageID::Status, data);
-        ESP_LOGD(TAG, "Blokace topení: CH enable vypnut (0x%08lX)", request);
+        ESP_LOGD(TAG, "CH blocked: CH enable bit cleared in thermostat status request (0x%08lX)", request);
       }
 
       unsigned long response = instance_->ot_->sendRequest(request);
